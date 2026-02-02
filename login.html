@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول المدير - Wusooly</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+
+        body {
+            margin: 0; height: 100vh; display: flex;
+            justify-content: center; align-items: center;
+            overflow: hidden; background-color: #000;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .bg-image {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://i.ibb.co/8LVbzyP2/1770038717427.png') no-repeat center center;
+            background-size: cover; z-index: -1; filter: brightness(0.6);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px;
+            padding: 40px 30px; width: 90%; max-width: 400px;
+            text-align: center; color: #fff; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        h2 { margin-top: 0; font-weight: 800; font-size: 28px; }
+        p { color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 30px; }
+
+        .google-btn {
+            background: white; color: #333; width: 100%; padding: 12px;
+            border-radius: 12px; border: none; font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: 0.3s; margin-top: 10px;
+        }
+        .google-btn:hover { background: #f1f1f1; transform: scale(1.02); }
+
+        #msg-box {
+            margin-top: 20px; font-size: 14px; font-weight: bold;
+            display: none; padding: 10px; border-radius: 8px;
+        }
+        .success { background: rgba(76, 175, 80, 0.2); color: #4CAF50; border: 1px solid #4CAF50; }
+        .error { background: rgba(244, 67, 54, 0.2); color: #ff4747; border: 1px solid #ff4747; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-image"></div>
+
+    <div class="glass-card">
+        <h2>أهلاً بك 👋</h2>
+        <p>بوابة إدارة متجر Wusooly</p>
+
+        <button id="login-btn" class="google-btn">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+            تسجيل الدخول (Google)
+        </button>
+
+        <div id="msg-box"></div>
+        <div style="margin-top: 30px; font-size: 12px; opacity: 0.5;">Wusooly Admin Panel &copy; 2026</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBa0RwEcbVqWYAKeUFeZy2IDihaxUxtNKY",
+            authDomain: "wusooly-1906b.firebaseapp.com",
+            projectId: "wusooly-1906b",
+            storageBucket: "wusooly-1906b.firebasestorage.app",
+            messagingSenderId: "95836343161",
+            appId: "1:95836343161:web:73ae3faaca406c0bf7fda8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        const ADMIN_EMAIL = "hmamda320@gmail.com";
+
+        const btn = document.getElementById('login-btn');
+        const msgBox = document.getElementById('msg-box');
+
+        function showMsg(text, type) {
+            msgBox.innerText = text;
+            msgBox.className = type;
+            msgBox.style.display = 'block';
+        }
+
+        // فحص تلقائي إذا كان المستخدم مسجل مسبقاً
+        onAuthStateChanged(auth, (user) => {
+            if (user && user.email === ADMIN_EMAIL) {
+                showMsg("أنت مسجل دخول بالفعل.. جاري التحويل 🔄", "success");
+                setTimeout(() => window.location.href = "index.html", 1000);
+            }
+        });
+
+        btn.addEventListener('click', () => {
+            btn.disabled = true;
+            btn.innerText = "جاري فتح النافذة...";
+
+            // 1. تثبيت الجلسة أولاً (أهم خطوة لمنع الخروج التلقائي)
+            setPersistence(auth, browserLocalPersistence)
+                .then(() => {
+                    // 2. فتح النافذة المنبثقة
+                    return signInWithPopup(auth, provider);
+                })
+                .then((result) => {
+                    const user = result.user;
+                    if (user.email === ADMIN_EMAIL) {
+                        showMsg(`أهلاً ${user.displayName}! تم الدخول بنجاح ✅`, "success");
+                        // 3. التحويل بعد نجاح الحفظ
+                        setTimeout(() => window.location.href = "index.html", 1500);
+                    } else {
+                        showMsg("⛔ هذا الحساب ليس للمدير!", "error");
+                        auth.signOut();
+                        btn.disabled = false;
+                        btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"> تسجيل الدخول (Google)';
+                    }
+                })
+                .catch((error) => {
+                    console.error(error);
+                    showMsg("حدث خطأ: " + error.message, "error");
+                    btn.disabled = false;
+                    btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"> تسجيل الدخول (Google)';
+                });
+        });
+    </script>
+</body>
+</html>
