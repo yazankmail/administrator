@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>البائعين - Admin</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+        body { font-family: 'Cairo', sans-serif; background: #f3f4f6; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 260px; background: #1e293b; color: #cbd5e1; padding: 20px 0; display:flex; flex-direction:column; }
+        .nav a { display: block; padding: 12px 20px; color: #cbd5e1; text-decoration: none; font-weight: 600; }
+        .nav a.active { background: #334155; color: white; }
+        .main { flex: 1; padding: 30px; overflow-y: auto; }
+        
+        .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .btn-add { background: #5c6bc0; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .store-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #eee; }
+        
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 450px; padding: 25px; border-radius: 15px; }
+        .inp { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-family: 'Cairo'; }
+        
+        .cats-wrapper { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .cat-option { background: #f0f0f0; padding: 5px 10px; border-radius: 5px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div style="text-align:center; color:white; font-weight:800; margin-bottom:30px;">Wusooly Admin</div>
+        <div class="nav">
+            <a href="index.html">🏠 الرئيسية</a>
+            <a href="products.html">📦 المنتجات</a>
+            <a href="admin_sellers.html" class="active">🏪 البائعين</a>
+            <a href="users.html">👥 المستخدمين</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="header">
+            <h1>المتاجر والبائعين</h1>
+            <button class="btn-add" onclick="openModal()">+ إضافة متجر</button>
+        </div>
+        <div id="sellers-grid" class="grid"></div>
+    </main>
+
+    <div class="modal" id="storeModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">متجر جديد</h2>
+            <input type="hidden" id="sid">
+            
+            <label>اسم المتجر</label><input type="text" id="sname" class="inp" placeholder="مثلاً: ريم ستور">
+            <label>صورة المتجر (رابط)</label><input type="text" id="simg" class="inp" placeholder="https://...">
+            <label>البريد الإلكتروني</label><input type="email" id="semail" class="inp">
+            <label>الوصف</label><textarea id="sdesc" class="inp" rows="3"></textarea>
+            
+            <label>التخصصات (الأصناف)</label>
+            <div class="cats-wrapper">
+                <label class="cat-option"><input type="checkbox" value="ملابس"> ملابس</label>
+                <label class="cat-option"><input type="checkbox" value="أحذية"> أحذية</label>
+                <label class="cat-option"><input type="checkbox" value="شنط"> شنط</label>
+                <label class="cat-option"><input type="checkbox" value="اكسسوارات"> اكسسوارات</label>
+                <label class="cat-option"><input type="checkbox" value="هدايا"> هدايا</label>
+                <label class="cat-option"><input type="checkbox" value="إلكترونيات"> إلكترونيات</label>
+            </div>
+
+            <button class="btn-add" style="width:100%" onclick="saveSeller()">حفظ</button>
+            <button onclick="document.getElementById('storeModal').style.display='none'" style="width:100%; margin-top:5px; background:none; border:none; cursor:pointer;">إلغاء</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBa0RwEcbVqWYAKeUFeZy2IDihaxUxtNKY", authDomain: "wusooly-1906b.firebaseapp.com", projectId: "wusooly-1906b", storageBucket: "wusooly-1906b.firebasestorage.app", messagingSenderId: "95836343161", appId: "1:95836343161:web:73ae3faaca406c0bf7fda8" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let allSellers = [];
+
+        async function loadSellers() {
+            const grid = document.getElementById('sellers-grid');
+            grid.innerHTML = 'جاري التحميل...';
+            const snap = await getDocs(collection(db, "sellers"));
+            allSellers = [];
+            grid.innerHTML = '';
+            
+            snap.forEach(d => {
+                const s = d.data(); s.id = d.id;
+                allSellers.push(s);
+                grid.innerHTML += `
+                    <div class="card">
+                        <img src="${s.image || 'https://via.placeholder.com/80'}" class="store-img">
+                        <h3>${s.name}</h3>
+                        <p style="color:#666; font-size:12px;">${s.categories ? s.categories.join('، ') : '-'}</p>
+                        <button onclick="window.editSeller('${s.id}')" style="cursor:pointer; border:none; background:none; color:blue;">تعديل</button>
+                        <button onclick="window.deleteSeller('${s.id}')" style="cursor:pointer; border:none; background:none; color:red;">حذف</button>
+                    </div>
+                `;
+            });
+        }
+
+        window.openModal = () => {
+            document.getElementById('sid').value = '';
+            document.getElementById('sname').value = '';
+            document.getElementById('simg').value = '';
+            document.getElementById('semail').value = '';
+            document.getElementById('sdesc').value = '';
+            document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+            document.getElementById('storeModal').style.display = 'flex';
+        };
+
+        window.saveSeller = async () => {
+            const id = document.getElementById('sid').value;
+            const cats = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(c => cats.push(c.value));
+            
+            const data = {
+                name: document.getElementById('sname').value,
+                image: document.getElementById('simg').value,
+                email: document.getElementById('semail').value,
+                description: document.getElementById('sdesc').value,
+                categories: cats
+            };
+
+            if(id) await updateDoc(doc(db, "sellers", id), data);
+            else await addDoc(collection(db, "sellers"), data);
+            
+            document.getElementById('storeModal').style.display = 'none';
+            loadSellers();
+        };
+
+        window.editSeller = (id) => {
+            const s = allSellers.find(x => x.id === id);
+            if(s) {
+                window.openModal();
+                document.getElementById('sid').value = id;
+                document.getElementById('sname').value = s.name;
+                document.getElementById('simg').value = s.image;
+                document.getElementById('semail').value = s.email;
+                document.getElementById('sdesc').value = s.description;
+                if(s.categories) {
+                    document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = s.categories.includes(c.value));
+                }
+            }
+        }
+
+        window.deleteSeller = async (id) => {
+            if(confirm("حذف المتجر؟")) { await deleteDoc(doc(db, "sellers", id)); loadSellers(); }
+        }
+
+        loadSellers();
+    </script>
+</body>
+</html>
