@@ -105,18 +105,18 @@
             <div class="inp-group">
                 <label>الفئة (تصنيفات المتجر)</label>
                 <select id="pcat">
-                    <option value="تيشيرت">تيشيرت 👕</option>
-                    <option value="بكجات هدايا">بكجات هدايا 🎁</option>
-                    <option value="اكسسوارات">اكسسوارات 💍</option>
-                    <option value="شنط">شنط 👜</option>
+                    <option value="ملابس">ملابس 👕</option>
                     <option value="أحذية">أحذية 👟</option>
+                    <option value="شنط">شنط 👜</option>
+                    <option value="اكسسوارات">اكسسوارات 💍</option>
+                    <option value="بكجات هدايا">بكجات هدايا 🎁</option>
                     <option value="إلكترونيات">إلكترونيات 📱</option>
                     <option value="أخرى">أخرى</option>
                 </select>
             </div>
 
             <div class="inp-group">
-                <label>المقاسات المتوفرة (للتيشيرتات والأحذية)</label>
+                <label>المقاسات المتوفرة (للملابس والأحذية)</label>
                 <div class="sizes-wrapper">
                     <label class="size-option"><input type="checkbox" name="size" value="S"> S</label>
                     <label class="size-option"><input type="checkbox" name="size" value="M"> M</label>
@@ -199,7 +199,10 @@
                     sizesHtml = data.sizes.map(s => `<span class="size-tag">${s}</span>`).join(' ');
                 }
 
-                const mainImg = (data.images && data.images.length > 0) ? data.images[0] : 'https://via.placeholder.com/40';
+                // جلب الصورة (سواء كانت مصفوفة جديدة أو نص قديم)
+                let mainImg = 'https://via.placeholder.com/40';
+                if (data.images && data.images.length > 0) mainImg = data.images[0];
+                else if (data.image) mainImg = data.image;
 
                 tbody.innerHTML += `
                     <tr>
@@ -285,11 +288,14 @@
                 document.getElementById('pstock').value = item.stock;
                 document.getElementById('pcat').value = item.category;
                 
-                if(item.images) {
+                // تعبئة الصور (يدعم النظامين القديم والجديد)
+                if(item.images && item.images.length > 0) {
                     document.getElementById('img1').value = item.images[0] || '';
                     document.getElementById('img2').value = item.images[1] || '';
                     document.getElementById('img3').value = item.images[2] || '';
                     document.getElementById('img4').value = item.images[3] || '';
+                } else if (item.image) {
+                    document.getElementById('img1').value = item.image;
                 }
 
                 if (item.sizes) {
