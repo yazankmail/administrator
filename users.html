@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المستخدمين - Admin</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+        :root { --primary: #5c6bc0; --dark: #1e293b; --light: #f3f4f6; --danger: #ef4444; --success: #22c55e; }
+        body { font-family: 'Cairo', sans-serif; background: var(--light); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 260px; background: var(--dark); color: #cbd5e1; display: flex; flex-direction: column; padding: 20px 0; flex-shrink: 0; }
+        .logo { text-align: center; color: white; font-weight: 800; font-size: 22px; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 1px solid #334155; }
+        .nav a { display: block; padding: 12px 20px; color: #cbd5e1; text-decoration: none; margin-bottom: 5px; font-weight: 600; transition: 0.2s; }
+        .nav a:hover, .nav a.active { background: #334155; color: white; }
+        
+        .main { flex: 1; padding: 30px; overflow-y: auto; }
+        .table-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; border-bottom: 1px solid #eee; text-align: right; }
+        th { background: #f8fafc; color: #64748b; font-weight: bold; }
+        
+        .status-active { color: var(--success); font-weight: bold; background: #dcfce7; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+        .status-banned { color: var(--danger); font-weight: bold; background: #fee2e2; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+        
+        .action-btn { border: none; background: none; cursor: pointer; font-size: 16px; margin-left: 5px; }
+        
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 400px; padding: 25px; border-radius: 15px; }
+        .inp { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Cairo'; }
+        .btn-save { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo">Wusooly Admin</div>
+        <div class="nav">
+            <a href="index.html">🏠 الرئيسية</a>
+            <a href="products.html">📦 المنتجات</a>
+            <a href="admin_sellers.html">🏪 البائعين</a>
+            <a href="users.html" class="active">👥 المستخدمين</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <h1 style="margin-bottom: 20px;">إدارة المستخدمين</h1>
+        <div class="table-box">
+            <table>
+                <thead><tr><th>الاسم</th><th>رقم الهاتف</th><th>المنطقة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                <tbody id="users-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <h2 style="margin-top:0;">تعديل المستخدم</h2>
+            <input type="hidden" id="uid">
+            <label>الاسم الأول</label><input type="text" id="fname" class="inp">
+            <label>اسم العائلة</label><input type="text" id="sname" class="inp">
+            <label>رقم الهاتف</label><input type="text" id="phone" class="inp">
+            <label>حالة الحساب</label>
+            <select id="status" class="inp">
+                <option value="active">نشط (Active)</option>
+                <option value="banned">محظور (Banned)</option>
+            </select>
+            <button class="btn-save" onclick="saveUser()">حفظ التغييرات</button>
+            <button onclick="document.getElementById('userModal').style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; cursor:pointer;">إلغاء</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBa0RwEcbVqWYAKeUFeZy2IDihaxUxtNKY", authDomain: "wusooly-1906b.firebaseapp.com", projectId: "wusooly-1906b", storageBucket: "wusooly-1906b.firebasestorage.app", messagingSenderId: "95836343161", appId: "1:95836343161:web:73ae3faaca406c0bf7fda8" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        let allUsers = [];
+
+        async function loadUsers() {
+            const tbody = document.getElementById('users-body');
+            tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
+            
+            const snapshot = await getDocs(collection(db, "users"));
+            allUsers = [];
+            tbody.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const u = doc.data();
+                u.id = doc.id;
+                allUsers.push(u);
+                
+                const statusBadge = u.banned ? '<span class="status-banned">محظور</span>' : '<span class="status-active">نشط</span>';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.firstName || ''} ${u.secondName || ''}</td>
+                        <td>${u.phone || '-'}</td>
+                        <td>${u.city || '-'}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="action-btn" onclick="window.editUser('${u.id}')">✏️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.editUser = (id) => {
+            const user = allUsers.find(u => u.id === id);
+            if(user) {
+                document.getElementById('uid').value = id;
+                document.getElementById('fname').value = user.firstName || '';
+                document.getElementById('sname').value = user.secondName || '';
+                document.getElementById('phone').value = user.phone || '';
+                document.getElementById('status').value = user.banned ? 'banned' : 'active';
+                document.getElementById('userModal').style.display = 'flex';
+            }
+        };
+
+        window.saveUser = async () => {
+            const id = document.getElementById('uid').value;
+            const isBanned = document.getElementById('status').value === 'banned';
+            
+            await updateDoc(doc(db, "users", id), {
+                firstName: document.getElementById('fname').value,
+                secondName: document.getElementById('sname').value,
+                phone: document.getElementById('phone').value,
+                banned: isBanned
+            });
+            
+            document.getElementById('userModal').style.display = 'none';
+            loadUsers();
+            alert("تم تحديث المستخدم");
+        };
+
+        loadUsers();
+    </script>
+</body>
+</html>
